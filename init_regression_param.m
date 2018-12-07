@@ -74,7 +74,7 @@ if  try_EM ==1% découpage uniforme en K segments
          xij = x(i:j);
          xk = xij;%x((k-1)*zi+1:k*zi);
          phik = phi(i:j,:);%phi((k-1)*zi+1:k*zi,:);
-         param.betak(:,k) = regress(xk,phik);
+         param.betak(:,k) = inv(phik'*phik)*phik'*xk;%regress(xk,phik); % for a use in octave, where regress doesnt exist
          sigmak = var(xk);
          
          % muk = phik* param.betak(:,k);

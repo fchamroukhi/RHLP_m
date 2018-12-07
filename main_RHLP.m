@@ -72,16 +72,18 @@ verbose_IRLS = 0;
 
 load simulated_time_series;
 
-solution =  learn_RHLP_EM(x, y, K, p, q, type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
+solution =  learn_RHLP_EM(x, y, K, p, q, ...
+    type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
 show_RHLP_results(x,y,solution)
 
 
 %% some real time series with regime changes
 
-load real_time_series_1
-%load real_time_series_2
+%load real_time_series_1
+load real_time_series_2
 
-solution =  learn_RHLP_EM(x, y, K, p, q, type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
+solution =  learn_RHLP_EM(x, y, K, p, q,...
+    type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
 
 yaxislim = [240 600];
 show_RHLP_results(x,y,solution, yaxislim)%yaxislim is optional
