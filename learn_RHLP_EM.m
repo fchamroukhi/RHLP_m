@@ -42,9 +42,8 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 %
 %          4. tjk : post prob (fuzzy segmentation matrix of dim [mxK])
 %          5. Zjk : Hard segmentation matrix of dim [mxK] obtained by the
-%          MAP rule :  z_{jk} = 1 if and only z_j = arg max_k tjk
-%          (k1,...,K)
-%          appartient ??? la classe k et zero sinon.
+%          MAP rule :  z_{jk} = 1 if z_j = arg max_k tjk; O otherwise
+%          (k =1,...,K)
 %          6. klas : column vector of the labels issued from Zjk, its
 %          elements are klas(j)= k (k=1,...,K.)
 %          8. theta : parameter vector of the model: theta=(wk,betak,sigmak).
@@ -53,27 +52,21 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 %          9. Ey: curve expectation : sum of the polynomial components betak ri weighted by
 %             the logitic probabilities pijk: Ey(j) = sum_{k=1}^K pijk betak rj, j=1,...,m. Ey
 %              is a column vector of dimension m
-%          13. loglik : log-lik at convergence of EM
-%          14. stored_loglik : vector of stored valued of the log-lik at each EM
+%          10. loglik : log-lik at convergence of EM
+%          11. stored_loglik : vector of stored valued of the log-lik at each EM
 %          iteration
 %
-%          17. BIC : valeur du critre BIC.  BIC = loglik - nu*log(nm)/2.
-%          17. ICL : valeur du critre ICL.  BIC = complete_loglik - nu*log(nm)/2.
-%          18. AIC : valeur du critere AIC. AIC = loglik - nu.
-%          20. nu : nbr of free model parametres
+%          12. BIC : valeur du critre BIC.  BIC = loglik - nu*log(nm)/2.
+%          13. ICL : valeur du critre ICL.  BIC = complete_loglik - nu*log(nm)/2.
+%          14. AIC : valeur du critere AIC. AIC = loglik - nu.
+%          15. nu : nbr of free model parametres
 
-%          21. X :  Regression (covariate, Vendermond, design) matrices
-%          22. Xw : design matrix for the logistic regression: matrix of dim [mx(q+1)].
-%          23. XBeta : design matrix for the polynomial regression: matrix of dim [mx(p+1)].
-%
-%          2. log_fxj : logarithme des probabilites des
-%          observations : log_fxj = log(sum_{i=1}^n sum_{k=1}^K pijk
-%          fk(xi)). vecteur colonne de dim n
-%          3. fxj : probas des observations : sum_{j=1}^m sum_{k=1}^K pijk
-%          fk(xj)). vecteur colonne de dim n
+%          16. Xw : design matrix for the logistic regression: matrix of dim [mx(q+1)].
+%          17. XBeta : design matrix for the polynomial regression: matrix of dim [mx(p+1)].
+
 
 %% References
-%  If you are using this code, please cite the following papers:
+% Please cite the following papers for this code:
 %
 % @article{chamroukhi_et_al_NN2009,
 % 	Address = {Oxford, UK, UK},
@@ -139,14 +132,6 @@ m = length(y);
 
 q = dim_w;
 
-% number of free model parameters
-if homoskedastic
-    nu = (p+q+3)*K-(q+1) - (K-1) ;
-else
-    nu = (p+q+3)*K-(q+1);
-end
-
-
 [XBeta, Xw] = designmatrix_RHLP(x,p,q);
 
 
@@ -169,17 +154,16 @@ while (nb_good_try < total_EM_tries)
     end
     param.wk = W0;
     %   2. Initialization of betak et de sigmak (from one curve)
-    param = init_regression_param(y,K,XBeta,type_variance, try_EM);
+    param = init_regression_param(XBeta,y,K,type_variance, try_EM);
     
     %%%
-    theta = zeros(nu,1);% model parammeter vector
+
     iter = 0;
     converge = 0;
     prev_loglik=-inf;
     top=0;
     Winit = W0;%
-    %% EM %%%%
-    
+    %% EM %%%% 
     while ~converge && ~isempty(param) && (iter< max_iter_EM)
         %% E-Step
         param.piik = logit_model(Winit,Xw);
@@ -193,7 +177,7 @@ while (nb_good_try < total_EM_tries)
                 sigmak = param.sigmak(k);
             end
             z=((y-muk).^2)/sigmak;
-            log_piik_fik(:,k) = log(param.piik(:,k)) -0.5*ones(m,1).*(log(2*pi)+log(sigmak)) - 0.5*z;
+            log_piik_fik(:,k) = log(param.piik(:,k)) -0.5*(log(2*pi)+log(sigmak)) - 0.5*z;
         end
         
         % % log_piik_fik  = min(log_piik_fik,log(realmax));
@@ -208,7 +192,6 @@ while (nb_good_try < total_EM_tries)
         %% M-Step
         % Maximization w.r.t betak and sigmak (the variances)
         % --------------------------------------------------%
-        
         if homoskedastic,  s = 0;   end
         %
         for k=1:K
@@ -237,10 +220,10 @@ while (nb_good_try < total_EM_tries)
         % Maximization w.r.t W
         % ----------------------------------%
         %%  IRLS : Iteratively Reweighted Least Squares (for IRLS, see the IJCNN 2009 paper)
-        res = IRLS(tik,Xw,Winit,verbose_IRLS);
+        res = IRLS(Xw, tik, Winit, verbose_IRLS);
         param.piik = res.piik;
-        param.wk = res.wk;
-        Winit = res.wk;
+        param.wk = res.W;
+        Winit = res.W;
         
         
         %% End of EM
@@ -309,7 +292,6 @@ solution = best_solution;
 if total_EM_tries>1;   fprintf(1,'best loglik:  %f\n',solution.loglik); end
 
 % % for the best solution
-
 solution.param.piik = solution.param.piik(1:m,:);
 solution.tik = solution.tik(1:m,:);
 
@@ -317,7 +299,8 @@ solution.tik = solution.tik(1:m,:);
 [klas, Zik] = MAP(solution.param.piik);
 
 solution.klas = klas;
-%
+
+% model parammeter vector
 if homoskedastic; theta = [param.wk(:); param.betak(:); param.sigma];
 else; theta = [param.wk(:); param.betak(:); param.sigmak(:)];
 end
@@ -334,7 +317,13 @@ solution.cputime_total = cputime_total;
 % solution.log_fxi = log_fxi(1:m,:);
 % solution.fxi = fxi(1:m,:);
 
-%%% BIC AIC et ICL
+%%% BIC AIC, ICL
+% number of free model parameters
+if homoskedastic
+    nu = (p+q+3)*K-(q+1) - (K-1) ;
+else
+    nu = (p+q+3)*K-(q+1);
+end
 solution.BIC = solution.loglik - (nu*log(m)/2);
 solution.AIC = solution.loglik - nu;
 %% CL(theta) : vraisemblance classificante
@@ -346,7 +335,6 @@ solution.ICL = solution.comp_loglik - (nu*log(m)/2);
 %warning on
 %
 solution.nu = nu;
-%solution.X = Phi(1:m,:);
 solution.XBeta = XBeta;
 solution.Xw = Xw;
 

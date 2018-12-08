@@ -40,7 +40,7 @@
 % 	}
 %
 %
-% by Faicel Chamroukhi (since 2008)
+% by Faicel Chamroukhi (2008)
 
 
 %%

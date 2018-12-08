@@ -6,8 +6,8 @@ if size(x,1)~=1
 end
 set(0,'defaultaxesfontsize',14);
 %colors = {'b','g','r','c','m','k','y'};
-colors = {[0.8 0 0],[0 0 0.8],[0 0.8 0],'m','c','k','y'};
-style =  {'r.','b.','g.','m.','c.','k.','y.'};
+colors = {[0.8 0 0],[0 0 0.8],[0 0.8 0],'m','c','k','y',[0.8 0 0],[0 0 0.8],[0 0.8 0],'m','c','k','y',[0.8 0 0],[0 0 0.8],[0 0.8 0]};
+style =  {'r.','b.','g.','m.','c.','k.','y.','r.','b.','g.','m.','c.','k.','y.','r.','b.','g.'};
 
 if (nargin<4)||isempty(yaxislim)
     yaxislim = [mean(y)-2*std(y), mean(y)+2*std(y)];
@@ -35,10 +35,12 @@ for k=1:K
     % plot(model_k(solution.klas ~= k))
     % pause
     %plot(x,solution.polynomials(solution.param.piik >= prob),'linewidth',3);
-    hold on,
-    plot(inactive_period_model_k,inactive_model_k,style{k},'markersize',0.001);
-    hold on,
-    plot(active_period_model_k, active_model_k,'Color', colors{k},'linewidth',3.5);
+    if (~isempty(active_model_k))
+        hold on,
+        plot(inactive_period_model_k,inactive_model_k,style{k},'markersize',0.001);
+        hold on,
+        plot(active_period_model_k, active_model_k,'Color', colors{k},'linewidth',3.5);
+    end
 end
 ylabel('y');
 ylim(yaxislim);
@@ -70,14 +72,14 @@ tk = find(diff(solution.klas)~=0);
 hold on, plot([x(tk); x(tk)], [ones(length(tk),1)*[min(y)-2*std(y) max(y)+2*std(y)]]','--','color','k','linewidth',1.5);
 ylabel('y');
 ylim(yaxislim);
- 
+
 % Probablities of the hidden process (segmentation)
 axes2 = axes('Parent',figr,'Position',[0.1 0.06 0.8 0.35],'FontSize',14);
 box(axes2,'on'); hold(axes2,'all');
-plot(solution.klas,'k.','linewidth',1.5);
+plot(x,solution.klas,'k.','linewidth',1.5);
 
 xlabel('t');
-ylabel('class labels');
+ylabel('Estimated class labels');
 
 %% model log-likelihood during EM
 % %
