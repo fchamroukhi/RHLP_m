@@ -1,7 +1,7 @@
 % User-freindly and flexible algorithm for time series segmentation with a Regression
 % model with a Hidden Logistic Process (RHLP).
 %
-%%  If you are using this code, please cite the following papers:
+%% Please cite the following papers for this code:
 %
 % @article{chamroukhi_et_al_NN2009,
 % 	Address = {Oxford, UK, UK},
@@ -30,13 +30,14 @@
 % }
 % 
 % @article{Chamroukhi-FDA-2018,
-% 	Journal = {},
+% 	Journal = {Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery},
 % 	Author = {Faicel Chamroukhi and Hien D. Nguyen},
+% 	Note = {DOI: 10.1002/widm.1298.},
 % 	Volume = {},
 % 	Title = {Model-Based Clustering and Classification of Functional Data},
-% 	Year = {2018},
-% 	eprint ={arXiv:1803.00276v2},
-% 	url =  {https://chamroukhi.users.lmno.cnrs.fr/papers/MBCC-FDA.pdf}
+% 	Year = {2019},
+% 	Month = {to appear},
+% 	url =  {https://chamroukhi.com/papers/MBCC-FDA.pdf}
 % 	}
 %
 %
@@ -58,7 +59,7 @@ q = 1; % dimension of w (ordre of the logistic regression: to be set to 1 for se
 % options
 %type_variance = 'homoskedastic';
 type_variance = 'hetereskedastic';
-nbr_EM_tries = 1;
+nbr_EM_tries = 3;
 max_iter_EM = 1500;
 threshold = 1e-6;
 verbose_EM = 1;
@@ -72,9 +73,10 @@ verbose_IRLS = 0;
 
 load simulated_time_series;
 
-solution =  learn_RHLP_EM(x, y, K, p, q, ...
+rhlp =  learn_RHLP_EM(x, y, K, p, q, ...
     type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
-show_RHLP_results(x,y,solution)
+
+show_RHLP_results(x,y, rhlp)
 
 
 %% some real time series with regime changes
@@ -82,11 +84,11 @@ show_RHLP_results(x,y,solution)
 %load real_time_series_1
 load real_time_series_2
 
-solution =  learn_RHLP_EM(x, y, K, p, q,...
+rhlp =  learn_RHLP_EM(x, y, K, p, q,...
     type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
 
 yaxislim = [240 600];
-show_RHLP_results(x,y,solution, yaxislim)%yaxislim is optional
+show_RHLP_results(x,y,rhlp, yaxislim)%yaxislim is optional
 
 
 

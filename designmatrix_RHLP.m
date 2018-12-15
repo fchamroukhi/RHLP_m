@@ -16,9 +16,10 @@ if (size(x,2) ~= 1)
     x=x'; % a column vector
 end
 
-X=[];
-for ord = 0:ordre_max
-    X =[X x.^(ord)];% X = [1 t t.^2 t.^3 t.^p;......;...]
+n = length(x);
+X=zeros(n,ordre_max+1);
+for i = 1:ordre_max+1
+    X(:,i) = x.^(i-1);% X = [1 t t.^2 t.^3 t.^p;......;...]
 end
 XBeta= X(:,1:p+1); % design matrix for Beta (the polynomial regressions)
 

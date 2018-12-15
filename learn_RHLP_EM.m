@@ -1,14 +1,14 @@
-function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tries, max_iter_EM,...
+function rhlp = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tries, max_iter_EM,...
     threshold, verbose_EM, verbose_IRLS)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS)%
+%function rhlp = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS)%
 %
-% Learn a Regression model with a Hidden Logistic Process (RHLP) for modeling and segmentatio nf of a time series with regime changes.
+% Learn a Regression model with a Hidden Logistic Process (RHLP) for modeling and segmentation of a time series with regime changes.
 % The learning is performed by the EM algorithm.
 %
 % Inputs :
 %
-%          1. y : a time series composed of m points : dim(Y)=[m 1]
+%          1. (x,y) : a time series composed of m points : dim(y)=[m 1]
 %                * Each curve is observed during the interval [0,T], i.e x =[t_1,...,t_m]
 %                * t{j}-t_{j-1} = dt (sampling period)
 %
@@ -26,8 +26,8 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 %
 % Outputs :
 %
-%          1. solution : structure containing mainly the following fields:
-%                      1.1 param : the model parameters:(W,beta1,...,betaK,sigma1,...,sigmaK).
+%          1. rhlp : structure containing mainly the following fields:
+%                      1.1 param : the model parameters:(W,beta1,...,betaK,sigma2_1,...,sigma2_K).
 %                          param is a structure containing the following
 %                          fields:
 %                          1.1.1 wk = (w1,...,wK-1) parameters of the logistic process:
@@ -37,7 +37,7 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 %                          regression coefficient vectors: matrix of
 %                          dimension [(p+1)xK] p being the polynomial
 %                          degree.
-%                          1.1.3 sigmak = (sigma1,...,sigmak) : the
+%                          1.1.3 sigma2k = (sigma2_1,...,sigma2_K) : the
 %                          variances for the K regmies. vector of dimension [Kx1]
 %
 %          4. tjk : post prob (fuzzy segmentation matrix of dim [mxK])
@@ -46,7 +46,7 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 %          (k =1,...,K)
 %          6. klas : column vector of the labels issued from Zjk, its
 %          elements are klas(j)= k (k=1,...,K.)
-%          8. theta : parameter vector of the model: theta=(wk,betak,sigmak).
+%          8. theta : parameter vector of the model: theta=(wk,betak,sigma2k).
 %              column vector of dim [nu x 1] with nu = nbr of free parametres
 %
 %          9. Ey: curve expectation : sum of the polynomial components betak ri weighted by
@@ -82,7 +82,7 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 % 	Year = {2009},
 % 	url  = {https://chamroukhi.users.lmno.cnrs.fr/papers/Chamroukhi_Neural_Networks_2009.pdf}
 % 	}
-% 
+%
 % @INPROCEEDINGS{Chamroukhi-IJCNN-2009,
 %   AUTHOR =       {Chamroukhi, F. and Sam\'e,  A. and Govaert, G. and Aknin, P.},
 %   TITLE =        {A regression model with a hidden logistic process for feature extraction from time series},
@@ -93,7 +93,7 @@ function solution = learn_RHLP_EM(x, y, K, p, dim_w, type_variance, total_EM_tri
 %   Address = {Atlanta, GA},
 %  url = {https://chamroukhi.users.lmno.cnrs.fr/papers/chamroukhi_ijcnn2009.pdf}
 % }
-% 
+%
 % @article{Chamroukhi-FDA-2018,
 % 	Journal = {},
 % 	Author = {Faicel Chamroukhi and Hien D. Nguyen},
@@ -126,7 +126,7 @@ if nargin<9;  verbose_IRLS = 0; verbose_EM = 0;   threshold = 1e-6; end
 if nargin<8;  verbose_IRLS = 0; verbose_EM = 0;   threshold = 1e-6; max_iter_EM = 1000; end
 if nargin<7;  verbose_IRLS = 0; verbose_EM = 0;   threshold = 1e-6; max_iter_EM = 1000; total_EM_tries=1;end
 
-if size(y,2)~=1, y=y'; end % 
+if size(y,2)~=1, y=y'; end %
 
 m = length(y);
 
@@ -134,7 +134,7 @@ q = dim_w;
 
 [XBeta, Xw] = designmatrix_RHLP(x,p,q);
 
-
+%
 best_loglik = -inf;
 nb_good_try=0;
 total_nb_try=0;
@@ -144,7 +144,7 @@ while (nb_good_try < total_EM_tries)
     if total_EM_tries>1,fprintf(1, 'EM try n°  %d \n ',nb_good_try+1); end
     total_nb_try=total_nb_try+1;
     time = cputime;
-    %% EM Initializaiton sept
+    %% EM Initializaiton step
     
     %   1. Initialization of W
     if try_EM ==1
@@ -153,17 +153,16 @@ while (nb_good_try < total_EM_tries)
         W0 = rand(q+1,K-1);
     end
     param.wk = W0;
-    %   2. Initialization of betak et de sigmak (from one curve)
-    param = init_regression_param(XBeta,y,K,type_variance, try_EM);
+    %   2. Initialization of betak and sigma2k (from one curve)
+    param = init_regression_param(XBeta, y, K, type_variance, try_EM);
     
     %%%
-
     iter = 0;
     converge = 0;
     prev_loglik=-inf;
     top=0;
     Winit = W0;%
-    %% EM %%%% 
+    %% EM %%%%
     while ~converge && ~isempty(param) && (iter< max_iter_EM)
         %% E-Step
         param.piik = logit_model(Winit,Xw);
@@ -172,12 +171,12 @@ while (nb_good_try < total_EM_tries)
         for k = 1:K
             muk = XBeta*param.betak(:,k);
             if homoskedastic
-                sigmak =  param.sigma;
+                sigma2k =  param.sigma2;
             else
-                sigmak = param.sigmak(k);
+                sigma2k = param.sigma2k(k);
             end
-            z=((y-muk).^2)/sigmak;
-            log_piik_fik(:,k) = log(param.piik(:,k)) -0.5*(log(2*pi)+log(sigmak)) - 0.5*z;
+            z=((y-muk).^2)/sigma2k;
+            log_piik_fik(:,k) = log(param.piik(:,k)) -0.5*(log(2*pi)+log(sigma2k)) - 0.5*z;
         end
         
         % % log_piik_fik  = min(log_piik_fik,log(realmax));
@@ -190,7 +189,7 @@ while (nb_good_try < total_EM_tries)
         tik = normalize(exp(log_tik),2);
         
         %% M-Step
-        % Maximization w.r.t betak and sigmak (the variances)
+        % Maximization w.r.t betak and sigma2k (the variances)
         % --------------------------------------------------%
         if homoskedastic,  s = 0;   end
         %
@@ -207,14 +206,14 @@ while (nb_good_try < total_EM_tries)
             betak = inv(M)*Xk'*yk; % Maximization w.r.t betak
             param.betak(:,k)=betak;
             z = sqrt(weights).*(y-XBeta*betak);
-            % Maximisation w.r.t sigmak (the variances)
-            priorsigma =  0;%1e-5;
+            % Maximisation w.r.t sigma2k (the variances)
+
+            sk = z'*z;
             if homoskedastic
-                sk = z'*z;
                 s = s+sk;
-                param.sigma = s/m;
+                param.sigma2 = s/m;
             else
-                param.sigmak(k)=z'*z/nk  + priorsigma ;
+                param.sigma2k(k)= sk/nk;
             end
         end
         % Maximization w.r.t W
@@ -231,7 +230,7 @@ while (nb_good_try < total_EM_tries)
         
         %% log-likelihood
         
-        if (priorsigma~=0); regEM = log(priorsigma); else regEM = 0; end
+        %if (priorsigma~=0); regEM = log(priorsigma); else regEM = 0; end
         
         loglik = sum(log_sum_piik_fik) + res.reg_irls;% + regEM;
         %%
@@ -253,69 +252,69 @@ while (nb_good_try < total_EM_tries)
     cputime_total = [cputime_total cputime-time];
     
     
-    solution.loglik = loglik;
-    solution.stored_loglik = stored_loglik;
-    solution.param = param;
-    solution.log_piik_fik = log_piik_fik;
+    rhlp.loglik = loglik;
+    rhlp.stored_loglik = stored_loglik;
+    rhlp.param = param;
+    rhlp.log_piik_fik = log_piik_fik;
     
     %% estimated parameter vector
-    if homoskedastic; theta = [param.wk(:); param.betak(:); param.sigma];
-    else; theta = [param.wk(:); param.betak(:); param.sigmak(:)];
+    if homoskedastic; theta = [param.wk(:); param.betak(:); param.sigma2];
+    else; theta = [param.wk(:); param.betak(:); param.sigma2k(:)];
     end
-    solution.theta = theta;
-    % solution.param.piik = param.piik(1:m,:);
-    solution.tik = tik(1:m,:);
+    rhlp.theta = theta;
+    % rhlp.param.piik = param.piik(1:m,:);
+    rhlp.tik = tik(1:m,:);
     
     if total_EM_tries>1
-        fprintf(1,'loglik = %f \n',solution.loglik);
+        fprintf(1,'loglik = %f \n',rhlp.loglik);
     end
-    if ~isempty(solution.param)
+    if ~isempty(rhlp.param)
         nb_good_try=nb_good_try+1;
         total_nb_try=0;
         
         if loglik > best_loglik
-            best_solution = solution;
+            best_rhlp = rhlp;
             best_loglik = loglik;
         end
     end
     
     if total_nb_try > 500
-        fprintf('Impossible to obtain the requested number of classes \n');
-        solution=[];
-        return   % ou continue
+        fprintf('can''t obtain the requested number of classes \n');
+        rhlp=[];
+        return
     end
 end%fin de la premi???re boucle while
 
 
-solution = best_solution;
+rhlp = best_rhlp;
 %
-if total_EM_tries>1;   fprintf(1,'best loglik:  %f\n',solution.loglik); end
+if total_EM_tries>1;   fprintf(1,'best loglik:  %f\n',rhlp.loglik); end
 
-% % for the best solution
-solution.param.piik = solution.param.piik(1:m,:);
-solution.tik = solution.tik(1:m,:);
+% % for the best rhlp
+rhlp.param.piik = rhlp.param.piik(1:m,:);
+rhlp.tik = rhlp.tik(1:m,:);
 
 %% classsification pour EM : classes = argmax(piik) (here to ensure a convex segmentation of the curve(s)).
-[klas, Zik] = MAP(solution.param.piik);
+[klas, Zik] = MAP(rhlp.param.piik);
 
-solution.klas = klas;
+rhlp.klas = klas;
 
 % model parammeter vector
-if homoskedastic; theta = [param.wk(:); param.betak(:); param.sigma];
-else; theta = [param.wk(:); param.betak(:); param.sigmak(:)];
+if homoskedastic; theta = [param.wk(:); param.betak(:); param.sigma2];
+else; theta = [param.wk(:); param.betak(:); param.sigma2k(:)];
 end
-solution.theta = theta;
+rhlp.theta = theta;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-solution.polynomials = XBeta*solution.param.betak;
-solution.weighted_polynomials = solution.param.piik.*(XBeta*solution.param.betak);
-solution.Ex =sum(solution.weighted_polynomials,2);
+rhlp.polynomials = XBeta*rhlp.param.betak;
+rhlp.weighted_polynomials = rhlp.param.piik.*(XBeta*rhlp.param.betak);
+rhlp.Ex =sum(rhlp.weighted_polynomials,2);
 
-solution.cputime = mean(cputime_total);
-solution.cputime_total = cputime_total;
+rhlp.cputime = mean(cputime_total);
+rhlp.cputime_total = cputime_total;
 
-% solution.log_fxi = log_fxi(1:m,:);
-% solution.fxi = fxi(1:m,:);
+% rhlp.log_fxi = log_fxi(1:m,:);
+% rhlp.fxi = fxi(1:m,:);
 
 %%% BIC AIC, ICL
 % number of free model parameters
@@ -324,19 +323,19 @@ if homoskedastic
 else
     nu = (p+q+3)*K-(q+1);
 end
-solution.BIC = solution.loglik - (nu*log(m)/2);
-solution.AIC = solution.loglik - nu;
-%% CL(theta) : vraisemblance classificante
-zik_log_piik_fk = Zik.*solution.log_piik_fik;
+rhlp.BIC = rhlp.loglik - (nu*log(m)/2);
+rhlp.AIC = rhlp.loglik - nu;
+%% CL(theta) : Completed-data loglikelihood
+zik_log_piik_fk = Zik.*rhlp.log_piik_fik;
 sum_zik_log_fik = sum(zik_log_piik_fk,2);
 comp_loglik = sum(sum_zik_log_fik);
-solution.comp_loglik = comp_loglik;
-solution.ICL = solution.comp_loglik - (nu*log(m)/2);
+rhlp.comp_loglik = comp_loglik;
+rhlp.ICL = rhlp.comp_loglik - (nu*log(m)/2);
 %warning on
 %
-solution.nu = nu;
-solution.XBeta = XBeta;
-solution.Xw = Xw;
+rhlp.nu = nu;
+rhlp.XBeta = XBeta;
+rhlp.Xw = Xw;
 
 
 
