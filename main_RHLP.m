@@ -59,7 +59,7 @@ q = 1; % dimension of w (ordre of the logistic regression: to be set to 1 for se
 % options
 %type_variance = 'homoskedastic';
 type_variance = 'hetereskedastic';
-nbr_EM_tries = 3;
+nbr_EM_tries = 1;
 max_iter_EM = 1500;
 threshold = 1e-6;
 verbose_EM = 1;
