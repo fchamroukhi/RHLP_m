@@ -17,7 +17,7 @@
 % 	Year = {2009},
 % 	url  = {https://chamroukhi.users.lmno.cnrs.fr/papers/Chamroukhi_Neural_Networks_2009.pdf}
 % 	}
-% 
+%
 % @INPROCEEDINGS{Chamroukhi-IJCNN-2009,
 %   AUTHOR =       {Chamroukhi, F. and Sam\'e,  A. and Govaert, G. and Aknin, P.},
 %   TITLE =        {A regression model with a hidden logistic process for feature extraction from time series},
@@ -28,7 +28,7 @@
 %   Address = {Atlanta, GA},
 %  url = {https://chamroukhi.users.lmno.cnrs.fr/papers/chamroukhi_ijcnn2009.pdf}
 % }
-% 
+%
 % @article{Chamroukhi-FDA-2018,
 % 	Journal = {Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery},
 % 	Author = {Faicel Chamroukhi and Hien D. Nguyen},
@@ -76,8 +76,22 @@ load simulated_time_series;
 rhlp =  learn_RHLP_EM(x, y, K, p, q, ...
     type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
 
-show_RHLP_results(x,y, rhlp)
+%if model selection
+current_BIC = -inf;verbose_EM = 0;
+for K=1:10
+    for p=0:4
+        
+        rhlp_Kp = learn_RHLP_EM(x, y, K, p, 1, type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
+        fprintf(1,'Number of segments K: %d | polynomial degree p: %d | BIC %f \n', K, p, rhlp_Kp.BIC);
+        if rhlp_Kp.BIC>current_BIC
+            rhlp=rhlp_Kp;
+            current_BIC = rhlp_Kp.BIC;
+        end
+        bic(K, p+1) = rhlp_Kp.BIC;
+    end
+end
 
+show_RHLP_results(x,y, rhlp)
 
 %% some real time series with regime changes
 
@@ -86,6 +100,20 @@ load real_time_series_2
 
 rhlp =  learn_RHLP_EM(x, y, K, p, q,...
     type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
+
+%if model selection
+current_BIC = -inf;verbose_EM = 0;
+for K=1:10
+    for p=0:4
+        rhlp_Kp = learn_RHLP_EM(x, y, K, p, 1, type_variance,nbr_EM_tries, max_iter_EM, threshold, verbose_EM, verbose_IRLS);
+        fprintf(1,'Number of segments K: %d | polynomial degree p: %d | BIC %f \n', K, p, rhlp_Kp.BIC);
+        if rhlp_Kp.BIC>current_BIC
+            rhlp=rhlp_Kp;
+            current_BIC = rhlp_Kp.BIC;
+        end
+        bic(K,p+1) = rhlp_Kp.BIC;
+    end
+end
 
 yaxislim = [240 600];
 show_RHLP_results(x,y,rhlp, yaxislim)%yaxislim is optional
